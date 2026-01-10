@@ -435,6 +435,7 @@
             <div style="text-align: center; margin-top: 20px; font-size: 14px; color: #7f8c8d;">
                 <p><strong>Trouble To Login: Contact To Admin</strong> </p>
                 <p><strong>Employees:</strong> Do Not Share Password.</p>
+                <div id="storageStatus" style="margin: 10px 0; padding: 8px; border-radius: 5px; font-size: 12px;"></div>
                 <details style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; text-align: left;">
                     <summary style="cursor: pointer; font-weight: bold; color: #2c3e50;">🔍 Test Credentials (Click to expand)</summary>
                     <div style="margin-top: 10px; font-size: 12px; line-height: 1.4;">
@@ -685,7 +686,35 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script>
+        // Firebase Configuration - REPLACE WITH YOUR CONFIG
+       const firebaseConfig = {
+           apiKey: "AIzaSyAf_R9_ZQFN70BZMLpU7ZGJmPufOea33xU",
+           authDomain: "roster-system-77794.firebaseapp.com",
+           databaseURL: "https://roster-system-77794-default-rtdb.asia-southeast1.firebasedatabase.app",
+           projectId: "roster-system-77794",
+           storageBucket: "roster-system-77794.firebasestorage.app",
+           messagingSenderId: "1090796622900",
+           appId: "1:1090796622900:web:97d83c3be3f7ebdd39e661",
+           measurementId: "G-29E9F5SKK5"
+        };
+        
+        // Initialize Firebase
+        let database = null;
+        let isOnline = false;
+        
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            isOnline = true;
+            console.log('✅ Firebase connected - Online storage enabled');
+        } catch (error) {
+            console.log('⚠️ Firebase not configured - Using local storage only');
+            isOnline = false;
+        }
         // Data Storage
         let currentUser = null;
         let sessionTimeout = null;
@@ -744,6 +773,9 @@
         function initApp() {
             loadData();
             
+            // Update storage status
+            updateStorageStatus();
+            
             // Add debug info for troubleshooting
             console.log('Available employees:', employees.map(e => ({ id: e.id, name: e.name, role: e.role })));
             
@@ -766,6 +798,21 @@
             
             // Add reset data button for debugging (only in development)
             addDebugButton();
+        }
+        
+        function updateStorageStatus() {
+            const statusDiv = document.getElementById('storageStatus');
+            if (statusDiv) {
+                if (isOnline) {
+                    statusDiv.innerHTML = '✅ Online Storage: Data syncs across devices';
+                    statusDiv.style.background = '#d4edda';
+                    statusDiv.style.color = '#155724';
+                } else {
+                    statusDiv.innerHTML = '⚠️ Local Storage: Data only on this device';
+                    statusDiv.style.background = '#fff3cd';
+                    statusDiv.style.color = '#856404';
+                }
+            }
         }
 
         function setupEventListeners() {
@@ -1861,6 +1908,15 @@
         }
 
         function saveData() {
+            const data = {
+                employees: employees,
+                monthlyRoster: monthlyRoster,
+                shiftRequests: shiftRequests,
+                leaveRequests: leaveRequests,
+                notifications: notifications
+            };
+            
+            // Save to localStorage (backup)
             localStorage.setItem('employees', JSON.stringify(employees));
             localStorage.setItem('monthlyRoster', JSON.stringify(monthlyRoster));
             localStorage.setItem('shiftRequests', JSON.stringify(shiftRequests));
@@ -1869,22 +1925,55 @@
             if (currentUser) {
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
             }
+            
+            // Save to Firebase (online)
+            if (isOnline && database) {
+                database.ref('rosterData').set(data).catch(error => {
+                    console.log('Firebase save failed:', error);
+                });
+            }
         }
 
         function loadData() {
+            if (isOnline && database) {
+                // Load from Firebase first
+                database.ref('rosterData').once('value').then(snapshot => {
+                    const data = snapshot.val();
+                    if (data) {
+                        employees = data.employees || employees;
+                        monthlyRoster = data.monthlyRoster || monthlyRoster;
+                        shiftRequests = data.shiftRequests || [];
+                        leaveRequests = data.leaveRequests || [];
+                        notifications = data.notifications || [];
+                        console.log('✅ Data loaded from Firebase');
+                    } else {
+                        loadFromLocalStorage();
+                    }
+                }).catch(error => {
+                    console.log('Firebase load failed, using local storage');
+                    loadFromLocalStorage();
+                });
+            } else {
+                loadFromLocalStorage();
+            }
+            
+            // Always load current user from localStorage (session data)
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) currentUser = JSON.parse(savedUser);
+        }
+        
+        function loadFromLocalStorage() {
             const savedEmployees = localStorage.getItem('employees');
             const savedMonthlyRoster = localStorage.getItem('monthlyRoster');
             const savedShift = localStorage.getItem('shiftRequests');
             const savedLeave = localStorage.getItem('leaveRequests');
             const savedNotifications = localStorage.getItem('notifications');
-            const savedUser = localStorage.getItem('currentUser');
             
             if (savedEmployees) employees = JSON.parse(savedEmployees);
             if (savedMonthlyRoster) monthlyRoster = JSON.parse(savedMonthlyRoster);
             if (savedShift) shiftRequests = JSON.parse(savedShift);
             if (savedLeave) leaveRequests = JSON.parse(savedLeave);
             if (savedNotifications) notifications = JSON.parse(savedNotifications);
-            if (savedUser) currentUser = JSON.parse(savedUser);
         }
 
         // Session Management Functions
