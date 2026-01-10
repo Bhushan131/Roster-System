@@ -755,14 +755,17 @@
         </div>
     </div>
 
+    <!-- Secure Configuration Loader -->
+    <script src="config.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script>
         // Firebase Configuration - SECURE VERSION
-        const firebaseConfig = {
-            apiKey: "AIzaSyAf_R9_ZQFN70BZMLpU7ZGJmPufOea33xU", // Public API key - restricted by domain
+        // API key loaded from secure configuration
+        const firebaseConfig = window.FIREBASE_CONFIG || {
+            apiKey: "<CONFIGURE_YOUR_API_KEY>", // Configure in config.js or environment variables
             authDomain: "roster-system-77794.firebaseapp.com",
             databaseURL: "https://roster-system-77794-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "roster-system-77794",
