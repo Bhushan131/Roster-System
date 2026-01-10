@@ -1162,20 +1162,22 @@
         }
 
         function openShiftModal(day = null) {
-            updateEmpList(); // Ensure employee list is populated
-            
-            if (day) {
-                const currentDate = new Date();
-                const currentYear = currentDate.getFullYear();
-                const currentMonth = currentDate.getMonth();
-                const shiftDate = new Date(currentYear, currentMonth, day);
-                const myShift = monthlyRoster[currentUser.name][`day${day}`];
+            // Populate employee dropdown
+            const dropdown = document.getElementById('shiftWithEmp');
+            if (dropdown) {
+                dropdown.innerHTML = '<option value="">Select Employee</option>';
                 
-                document.getElementById('shiftRosterId').value = day;
-                document.getElementById('shiftDate').value = shiftDate.toISOString().split('T')[0];
-                document.getElementById('shiftMyShift').value = myShift;
+                // Get all other employees except current user
+                const otherEmployees = employees.filter(emp => 
+                    emp.id !== currentUser.id && 
+                    emp.role === 'employee'
+                );
+                
+                otherEmployees.forEach(emp => {
+                    dropdown.innerHTML += `<option value="${emp.id}">${emp.id} - ${emp.name}</option>`;
+                });
             }
-            document.getElementById('exchangeShiftGroup').style.display = 'none';
+            
             document.getElementById('shiftModal').style.display = 'block';
         }
 
