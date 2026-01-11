@@ -275,7 +275,7 @@ async function loadLeaveRequests() {
     }
 }
 
-function openShiftExchange(rosterId) {
+async function openShiftExchange(rosterId) {
     const rosterItem = roster.find(r => r.id == rosterId);
     document.getElementById('shift-roster-id').value = rosterId;
     document.getElementById('shift-date').value = formatDateInput(rosterItem.date);
@@ -285,7 +285,16 @@ function openShiftExchange(rosterId) {
     document.getElementById('shift-date').readOnly = true;
     document.getElementById('shift-my-shift').disabled = true;
     
-    // Populate dropdown with ALL other employees (not just same date)
+    // Get all roster data to check other employees' shifts
+    let allRoster;
+    try {
+        allRoster = await apiCall('/api/roster');
+    } catch (error) {
+        console.error('Error loading all roster data:', error);
+        allRoster = [];
+    }
+    
+    // Populate dropdown with ALL other employees
     const dropdown = document.getElementById('shift-with-emp');
     dropdown.innerHTML = '<option value="">Select Employee</option>';
     
@@ -296,8 +305,8 @@ function openShiftExchange(rosterId) {
     );
     
     otherEmployees.forEach(emp => {
-        // Check if employee has roster on same date
-        const empRoster = roster.find(r => 
+        // Check if employee has roster on same date from all roster data
+        const empRoster = allRoster.find(r => 
             r.date === rosterItem.date && 
             r.empId === emp.id && 
             r.status === 'assigned'
