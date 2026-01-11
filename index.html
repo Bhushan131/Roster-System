@@ -544,14 +544,38 @@
 
             <!-- Employee Shift Exchange Tab -->
             <div id="empShiftTab" class="tab-content">
-                <h3>🔄 Shift Exchange Requests</h3>
-                <button class="btn btn-primary" onclick="openShiftModal()">➕ New Shift Exchange</button>
-                
-                <h4 style="margin-top: 30px;">📤 My Requests</h4>
-                <div id="empShiftRequests"></div>
-                
-                <h4 style="margin-top: 30px;">📥 Requests for Me</h4>
-                <div id="empIncomingRequests"></div>
+                <div class="request-card">
+                    <h3>🔄 Shift Exchange</h3>
+                    <div class="input-group">
+                        <label>Date</label>
+                        <input type="date" id="exchange-date" required>
+                    </div>
+                    <div class="input-group">
+                        <label>My Shift</label>
+                        <select id="exchange-my-shift" required>
+                            <option value="">Select Your Shift</option>
+                            <option value="A">A Shift</option>
+                            <option value="B">B Shift</option>
+                            <option value="C">C Shift</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>With Employee</label>
+                        <select id="exchange-with-emp" required>
+                            <option value="">Select Employee</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>To Shift</label>
+                        <select id="exchange-to-shift" required>
+                            <option value="">Select Shift to Exchange</option>
+                            <option value="A">A Shift</option>
+                            <option value="B">B Shift</option>
+                            <option value="C">C Shift</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendShiftExchangeRequest()">Send Request</button>
+                </div>
             </div>
 
             <!-- Employee Leave Tab -->
@@ -572,7 +596,6 @@
         <div id="adminDashboard" class="dashboard" style="display: none;">
             <div class="nav-tabs">
                 <button class="nav-tab active" onclick="showAdminTab('adminRosterTab')">📊 Upload Roster</button>
-                <button class="nav-tab" onclick="showAdminTab('adminShiftTab')">🔄 Shift Requests</button>
                 <button class="nav-tab" onclick="showAdminTab('adminLeaveTab')">📋 Leave Requests</button>
                 <button class="nav-tab" onclick="showAdminTab('adminEmpTab')">👥 Employees</button>
                 <button class="nav-tab" onclick="showAdminTab('adminNotifyTab')">📢 Send Notifications</button>
@@ -594,12 +617,6 @@
                     <button class="btn btn-success" onclick="uploadRosterFile()" style="width: auto; padding: 12px 24px;">📤 Upload Roster</button>
                 </div>
                 <div id="adminRoster"></div>
-            </div>
-
-            <!-- Admin Shift Tab -->
-            <div id="adminShiftTab" class="tab-content">
-                <h3>🔄 All Shift Exchange Requests</h3>
-                <div id="adminShiftRequests"></div>
             </div>
 
             <!-- Admin Leave Tab -->
@@ -635,49 +652,6 @@
     </div>
 
     <!-- Modals -->
-    <div id="shiftModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
-            <h3>🔄 Shift Exchange Request</h3>
-            <form id="shiftForm">
-                <input type="hidden" id="shiftRosterId">
-                <div class="input-group">
-                    <label>Date</label>
-                    <input type="date" id="shiftDate" required>
-                </div>
-                <div class="input-group">
-                    <label>My Shift</label>
-                    <select id="shiftMyShift" required>
-                        <option value="">Select Your Shift</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>Exchange with Employee</label>
-                    <select id="shiftWithEmp" required onchange="updateExchangeShift()">
-                        <option value="">Select Employee</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>To Shift</label>
-                    <select id="addShift" required>
-                        <option value="">Select Shift to Exchange</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="C">C</option>
-                    </select>
-                </div>
-                <div class="input-group" id="exchangeShiftGroup" style="display: none;">
-                    <label>Their Shift</label>
-                    <input type="text" id="shiftTheirShift" readonly style="background: #f8f9fa;">
-                </div>
-                <button type="submit" class="btn btn-primary">Submit Request</button>
-            </form>
-        </div>
-    </div>
-
     <div id="leaveModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
@@ -1069,6 +1043,22 @@
             
             document.querySelectorAll('#employeeDashboard .tab-content').forEach(tab => tab.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+            
+            // Populate employee dropdown when shift exchange tab is shown
+            if (tabId === 'empShiftTab') {
+                const empDropdown = document.getElementById('exchange-with-emp');
+                if (empDropdown) {
+                    empDropdown.innerHTML = '<option value="">Select Employee</option>';
+                    
+                    employees.filter(emp => emp.id !== currentUser.id && emp.role === 'employee')
+                        .forEach(emp => {
+                            const option = document.createElement('option');
+                            option.value = emp.id;
+                            option.textContent = emp.name;
+                            empDropdown.appendChild(option);
+                        });
+                }
+            }
             
             // Hide notification badge when notifications tab is clicked
             if (tabId === 'empNotificationTab') {
@@ -1986,6 +1976,48 @@
             
             // Restart data loading for login page
             loadData();
+        }
+
+        function sendShiftExchangeRequest() {
+            const date = document.getElementById('exchange-date').value;
+            const myShift = document.getElementById('exchange-my-shift').value;
+            const withEmpId = document.getElementById('exchange-with-emp').value;
+            const toShift = document.getElementById('exchange-to-shift').value;
+            
+            if (!date || !myShift || !withEmpId || !toShift) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            const withEmp = employees.find(e => e.id === withEmpId);
+            if (!withEmp) {
+                alert('Selected employee not found');
+                return;
+            }
+            
+            const request = {
+                id: Date.now(),
+                fromEmpId: currentUser.id,
+                fromEmpName: currentUser.name,
+                date: date,
+                myShift: myShift,
+                withEmpId: withEmpId,
+                withEmpName: withEmp.name,
+                withEmpShift: toShift,
+                status: 'pending',
+                requestedOn: new Date().toISOString()
+            };
+            
+            shiftRequests.push(request);
+            saveData();
+            
+            alert('Shift exchange request sent successfully!');
+            
+            // Clear form
+            document.getElementById('exchange-date').value = '';
+            document.getElementById('exchange-my-shift').value = '';
+            document.getElementById('exchange-with-emp').value = '';
+            document.getElementById('exchange-to-shift').value = '';
         }
 
         function closeModal() {
