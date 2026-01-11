@@ -1536,10 +1536,8 @@
             
             let html = '';
             notifications.slice().reverse().forEach((notif, index) => {
-                const isNew = index < 3; // Mark first 3 as new
                 html += `
-                    <div class="notification-card ${isNew ? 'unread' : 'read'}">
-                        ${isNew ? '<div class="unread-dot"></div>' : ''}
+                    <div class="notification-card">
                         <div class="notification-header">
                             <h4>📢 IC-07 GAVNER TOLL PLAZA</h4>
                             <span class="notification-date">${formatDateTime(notif.date)}</span>
@@ -2048,9 +2046,21 @@
                 html += `<div class="request-card">
                     <p><strong>Date:</strong> ${formatDate(notif.date)}</p>
                     <p><strong>Message:</strong> ${notif.message}</p>
+                    <div style="margin-top: 15px;">
+                        <button class="btn btn-danger" onclick="deleteNotification(${notif.id})" style="width: auto; padding: 8px 16px;">🗑️ Delete</button>
+                    </div>
                 </div>`;
             });
             container.innerHTML = html;
+        }
+
+        function deleteNotification(notificationId) {
+            if (confirm('Are you sure you want to delete this notification?')) {
+                notifications = notifications.filter(n => n.id !== notificationId);
+                saveData();
+                loadSentNotifications();
+                alert('✅ Notification deleted successfully!');
+            }
         }
 
         function logout() {
