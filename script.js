@@ -86,36 +86,6 @@ function showDashboard() {
             </div>
         </div>
         
-        <div id="shiftExchangeModal" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal()">&times;</span>
-                <h3>Shift Exchange Request</h3>
-                <form onsubmit="submitShiftExchange(); return false;">
-                    <input type="hidden" id="shift-roster-id">
-                    <div class="input-group">
-                        <label>Date</label>
-                        <input type="date" id="shift-date" required>
-                    </div>
-                    <div class="input-group">
-                        <label>My Shift</label>
-                        <select id="shift-my-shift" required>
-                            <option value="">Select Shift</option>
-                            <option value="A">A Shift</option>
-                            <option value="B">B Shift</option>
-                            <option value="C">C Shift</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>Exchange with Employee</label>
-                        <select id="shift-with-emp" required>
-                            <option value="">Select Employee</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="action-btn">Submit Request</button>
-                </form>
-            </div>
-        </div>
-
         <div id="leaveModal" class="modal">
             <div class="modal-content">
                 <span class="close" onclick="closeModal()">&times;</span>
@@ -196,7 +166,6 @@ async function loadRoster() {
                         <th>Date</th>
                         <th>Shift</th>
                         <th>Status</th>
-                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -208,9 +177,6 @@ async function loadRoster() {
                     <td>${formatDate(row.date)}</td>
                     <td>${row.shift}</td>
                     <td><span class="status-${row.status}">${row.status.toUpperCase()}</span></td>
-                    <td>
-                        <button class="action-btn" onclick="openShiftExchange('${row.id}')">Exchange Shift</button>
-                    </td>
                 </tr>
             `;
         });
@@ -219,34 +185,6 @@ async function loadRoster() {
         container.innerHTML = tableHTML;
     } catch (error) {
         container.innerHTML = '<p style="color: #e74c3c;">Error loading roster data.</p>';
-    }
-}
-
-async function loadShiftExchange() {
-    const container = document.getElementById('shift-exchange-tab');
-    
-    try {
-        shiftRequests = await apiCall(`/api/shift-requests?empId=${currentUser.id}`);
-        
-        container.innerHTML = `
-            <h3>My Shift Exchange Requests</h3>
-            ${shiftRequests.length > 0 ? 
-                shiftRequests.map(req => `
-                    <div class="request-card">
-                        <p><strong>Date:</strong> ${formatDate(req.date)}</p>
-                        <p><strong>My Shift:</strong> ${req.myShift}</p>
-                        <p><strong>Exchange With:</strong> ${req.withEmpName} (${req.withEmpId})</p>
-                        <p><strong>Their Shift:</strong> ${req.withEmpShift || 'Not specified'}</p>
-                        <p><strong>Status:</strong> <span class="status-${req.status}">${req.status.toUpperCase()}</span></p>
-                        <p><strong>Request Date:</strong> ${formatDate(req.requestDate || req.date)}</p>
-                    </div>
-                `).join('') : 
-                '<p style="text-align: center; color: #7f8c8d;">No shift exchange requests found.</p>'
-            }
-            <button class="action-btn" onclick="openShiftExchangeModal()">New Shift Exchange Request</button>
-        `;
-    } catch (error) {
-        container.innerHTML = '<p style="color: #e74c3c;">Error loading shift exchange data.</p>';
     }
 }
 
@@ -275,135 +213,67 @@ async function loadLeaveRequests() {
     }
 }
 
-async function openShiftExchange(rosterId) {
-    const rosterItem = roster.find(r => r.id == rosterId);
-    document.getElementById('shift-roster-id').value = rosterId;
-    document.getElementById('shift-date').value = formatDateInput(rosterItem.date);
-    document.getElementById('shift-my-shift').value = rosterItem.shift;
-    
-    // Make fields readonly when coming from roster
-    document.getElementById('shift-date').readOnly = true;
-    document.getElementById('shift-my-shift').disabled = true;
-    
-    // Get all roster data to check other employees' shifts
-    let allRoster;
-    try {
-        allRoster = await apiCall('/api/roster');
-    } catch (error) {
-        console.error('Error loading all roster data:', error);
-        allRoster = [];
+async function loadShiftExchange() {
+    if (employees.length === 0) {
+        await loadEmployees();
     }
     
-    // Populate dropdown with ALL other employees
-    const dropdown = document.getElementById('shift-with-emp');
-    dropdown.innerHTML = '<option value="">Select Employee</option>';
-    
-    // Get all employees except current user
-    const otherEmployees = employees.filter(emp => 
-        emp.id !== currentUser.id && 
-        emp.role === 'employee'
-    );
-    
-    otherEmployees.forEach(emp => {
-        // Check if employee has roster on same date from all roster data
-        const empRoster = allRoster.find(r => 
-            r.date === rosterItem.date && 
-            r.empId === emp.id && 
-            r.status === 'assigned'
-        );
+    // Populate employee dropdown
+    const empDropdown = document.getElementById('exchange-with-emp');
+    if (empDropdown) {
+        empDropdown.innerHTML = '<option value="">Select Employee</option>';
         
-        if (empRoster) {
-            dropdown.innerHTML += `<option value="${emp.id}">${emp.name} (${empRoster.shift} Shift)</option>`;
-        } else {
-            dropdown.innerHTML += `<option value="${emp.id}">${emp.name} (No shift assigned)</option>`;
-        }
-    });
-    
-    showModal('shiftExchangeModal');
-}
-
-function openShiftExchangeModal() {
-    // Clear form fields
-    document.getElementById('shift-roster-id').value = '';
-    document.getElementById('shift-date').value = '';
-    document.getElementById('shift-my-shift').value = '';
-    
-    // Make fields editable for new requests
-    document.getElementById('shift-date').readOnly = false;
-    document.getElementById('shift-my-shift').disabled = false;
-    
-    // Populate dropdown with all employees except current user
-    const dropdown = document.getElementById('shift-with-emp');
-    dropdown.innerHTML = '<option value="">Select Employee</option>';
-    
-    // Get all other employees
-    const otherEmployees = employees.filter(emp => 
-        emp.id !== currentUser.id && 
-        emp.role === 'employee'
-    );
-    
-    otherEmployees.forEach(emp => {
-        dropdown.innerHTML += `<option value="${emp.id}">${emp.name} (${emp.id})</option>`;
-    });
-    
-    showModal('shiftExchangeModal');
-}
-
-function openLeaveModal() {
-    showModal('leaveModal');
-}
-
-async function submitShiftExchange() {
-    const rosterId = document.getElementById('shift-roster-id').value;
-    const withEmpId = document.getElementById('shift-with-emp').value;
-    const shiftDate = document.getElementById('shift-date').value;
-    const myShift = document.getElementById('shift-my-shift').value;
-    
-    if (!withEmpId) {
-        alert('Please select an employee to exchange with.');
-        return;
+        employees.filter(emp => emp.id !== currentUser.id && emp.role === 'employee')
+            .forEach(emp => {
+                const option = document.createElement('option');
+                option.value = emp.id;
+                option.textContent = emp.name;
+                empDropdown.appendChild(option);
+            });
     }
+}
+
+async function sendShiftExchangeRequest() {
+    const date = document.getElementById('exchange-date').value;
+    const myShift = document.getElementById('exchange-my-shift').value;
+    const withEmpId = document.getElementById('exchange-with-emp').value;
+    const toShift = document.getElementById('exchange-to-shift').value;
     
-    if (!shiftDate || !myShift) {
-        alert('Please fill in all required fields.');
+    if (!date || !myShift || !withEmpId || !toShift) {
+        alert('Please fill all fields');
         return;
     }
     
     const withEmp = employees.find(e => e.id === withEmpId);
-    if (!withEmp) {
-        alert('Selected employee not found.');
-        return;
-    }
     
     try {
-        // Find target employee's shift for the same date (if any)
-        const allRoster = await apiCall('/api/roster');
-        const targetEmpRoster = allRoster.find(r => 
-            r.empId === withEmpId && 
-            r.date === shiftDate && 
-            r.status === 'assigned'
-        );
-        
         const requestData = {
             fromEmpId: currentUser.id,
             fromEmpName: currentUser.name,
-            date: shiftDate,
+            date: date,
             myShift: myShift,
             withEmpId: withEmpId,
             withEmpName: withEmp.name,
-            withEmpShift: targetEmpRoster ? targetEmpRoster.shift : 'No shift assigned'
+            withEmpShift: toShift
         };
         
         const result = await apiCall('/api/shift-requests', 'POST', requestData);
         
         if (result.success) {
-            closeModal();
-            loadTabData('shift-exchange');
-            alert(`Shift exchange request sent to ${withEmp.name} and submitted for manager approval!`);
+            alert('Shift exchange request sent successfully!');
+            // Clear form
+            document.getElementById('exchange-date').value = '';
+            document.getElementById('exchange-my-shift').value = '';
+            document.getElementById('exchange-with-emp').value = '';
+            document.getElementById('exchange-to-shift').value = '';
         }
     } catch (error) {
-        alert('Error submitting request. Please try again.');
+        alert('Error sending request. Please try again.');
     }
+}
+
+function openLeaveModal() {
+    showModal('leaveModal');
 }
 
 async function submitLeaveRequest() {
