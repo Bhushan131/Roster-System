@@ -1632,12 +1632,12 @@
             
             // Show ALL employees, not just those with roster data
             employees.filter(e => e.role !== 'admin').forEach(emp => {
-                const rosterData = monthlyRoster[emp.name];
+                const rosterData = monthlyRoster[emp.id];
                 
                 if (rosterData) {
                     // Employee has roster data
-                    const totalDays = Object.values(rosterData).filter(shift => shift !== 'OFF' && shift !== '').length;
-                    const offDays = Object.values(rosterData).filter(shift => shift === 'OFF').length;
+                    const totalDays = Object.values(rosterData).filter(shift => shift !== 'OFF' && shift !== 'W/O' && shift !== '').length;
+                    const offDays = Object.values(rosterData).filter(shift => shift === 'OFF' || shift === 'W/O').length;
                     
                     html += `<tr>
                         <td>${emp.name}</td>
