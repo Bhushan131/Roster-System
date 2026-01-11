@@ -831,7 +831,7 @@
         ];
 
         let monthlyRoster = {
-            'KARTIK RAJKULE': {
+            'AR0246': {
                 day1: 'A', day2: 'B', day3: 'W/O', day4: 'C', day5: 'A',
                 day6: 'B', day7: 'W/O', day8: 'C', day9: 'A', day10: 'B',
                 day11: 'W/O', day12: 'C', day13: 'A', day14: 'B', day15: 'W/O',
@@ -839,7 +839,7 @@
                 day21: 'A', day22: 'B', day23: 'W/O', day24: 'C', day25: 'A',
                 day26: 'B', day27: 'W/O', day28: 'C', day29: 'A', day30: 'B', day31: 'W/O'
             },
-            'AKASH PALGHAN': {
+            'AR0230': {
                 day1: 'B', day2: 'C', day3: 'A', day4: 'W/O', day5: 'B',
                 day6: 'C', day7: 'A', day8: 'W/O', day9: 'B', day10: 'C',
                 day11: 'A', day12: 'W/O', day13: 'B', day14: 'C', day15: 'A',
@@ -847,7 +847,7 @@
                 day21: 'B', day22: 'C', day23: 'A', day24: 'W/O', day25: 'B',
                 day26: 'C', day27: 'A', day28: 'W/O', day29: 'B', day30: 'C', day31: 'A'
             },
-            'ROSHAN SARODE': {
+            'AR0248': {
                 day1: 'C', day2: 'W/O', day3: 'B', day4: 'A', day5: 'C',
                 day6: 'W/O', day7: 'B', day8: 'A', day9: 'C', day10: 'W/O',
                 day11: 'B', day12: 'A', day13: 'C', day14: 'W/O', day15: 'B',
@@ -1148,37 +1148,13 @@
         function loadEmployeeRoster() {
             const container = document.getElementById('empRosterContent');
             
-            // Find roster data for current employee by matching name
-            let empRoster = null;
-            let matchedName = null;
-            
-            // Try exact name match first
-            if (monthlyRoster[currentUser.name]) {
-                empRoster = monthlyRoster[currentUser.name];
-                matchedName = currentUser.name;
-            } else {
-                // Try partial name matching
-                const userNameWords = currentUser.name.toLowerCase().split(' ');
-                for (const rosterName in monthlyRoster) {
-                    const rosterNameWords = rosterName.toLowerCase().split(' ');
-                    // Check if any word matches
-                    const hasMatch = userNameWords.some(userWord => 
-                        rosterNameWords.some(rosterWord => 
-                            userWord.includes(rosterWord) || rosterWord.includes(userWord)
-                        )
-                    );
-                    if (hasMatch) {
-                        empRoster = monthlyRoster[rosterName];
-                        matchedName = rosterName;
-                        break;
-                    }
-                }
-            }
+            // Find roster data by Employee ID
+            const empRoster = monthlyRoster[currentUser.id];
             
             if (!empRoster) {
                 container.innerHTML = `
-                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">No monthly roster found for <strong>${currentUser.name}</strong>.</p>
-                    <p style="text-align: center; color: #7f8c8d;">Please contact admin to upload Excel roster file with your name.</p>
+                    <p style="text-align: center; color: #7f8c8d; padding: 20px;">No monthly roster found for <strong>${currentUser.name} (${currentUser.id})</strong>.</p>
+                    <p style="text-align: center; color: #7f8c8d;">Please contact admin to upload Excel roster file with your Employee ID.</p>
                 `;
                 return;
             }
@@ -1189,7 +1165,7 @@
             const currentYear = currentDate.getFullYear();
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
             
-            // Build roster table in exact format requested
+            // Build roster table
             let html = '<div style="overflow-x: auto;"><table class="roster-table"><thead>';
             
             // Row 1: Date numbers (1, 2, 3, ..., 31)
@@ -1208,7 +1184,7 @@
             }
             html += '</tr></thead><tbody>';
             
-            // Row 3: Shift data (A, B, C, W/O) - exactly as from Excel
+            // Row 3: Shift data (A, B, C, W/O)
             html += '<tr><td><strong>Shift</strong></td>';
             for (let day = 1; day <= daysInMonth; day++) {
                 const shift = empRoster[`day${day}`] || 'N/A';
@@ -1216,11 +1192,6 @@
                 html += `<td><span class="${shiftClass}">${shift}</span></td>`;
             }
             html += '</tr></tbody></table></div>';
-            
-            // Add info about matched name if different
-            if (matchedName !== currentUser.name) {
-                html += `<p style="margin-top: 10px; font-size: 12px; color: #7f8c8d;">Showing roster for: <strong>${matchedName}</strong></p>`;
-            }
             
             container.innerHTML = html;
         }
