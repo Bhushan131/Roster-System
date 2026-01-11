@@ -51,6 +51,8 @@
             max-width: 1000px;
             margin: 0 auto;
             padding: 15px;
+            position: relative;
+            z-index: 5;
         }
 
         .header {
@@ -140,6 +142,8 @@
             padding: 40px;
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 10;
         }
 
         .dashboard {
@@ -556,38 +560,9 @@
 
             <!-- Employee Shift Exchange Tab -->
             <div id="empShiftTab" class="tab-content">
-                <div class="request-card">
-                    <h3>🔄 Shift Exchange</h3>
-                    <div class="input-group">
-                        <label>Date</label>
-                        <input type="date" id="exchange-date" required>
-                    </div>
-                    <div class="input-group">
-                        <label>My Shift</label>
-                        <select id="exchange-my-shift" required>
-                            <option value="">Select Your Shift</option>
-                            <option value="A">A Shift</option>
-                            <option value="B">B Shift</option>
-                            <option value="C">C Shift</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>With Employee</label>
-                        <select id="exchange-with-emp" required>
-                            <option value="">Select Employee</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>To Shift</label>
-                        <select id="exchange-to-shift" required>
-                            <option value="">Select Shift to Exchange</option>
-                            <option value="A">A Shift</option>
-                            <option value="B">B Shift</option>
-                            <option value="C">C Shift</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary" onclick="sendShiftExchangeRequest()">Send Request</button>
-                </div>
+                <h3>🔄 My Shift Exchange Requests</h3>
+                <button class="btn btn-primary" onclick="openShiftExchangeModal()">➕ New Shift Exchange Request</button>
+                <div id="empShiftRequests"></div>
             </div>
 
             <!-- Employee Leave Tab -->
@@ -671,6 +646,44 @@
     </div>
 
     <!-- Modals -->
+    <div id="shiftExchangeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3>🔄 Shift Exchange Request</h3>
+            <form id="shiftExchangeForm">
+                <div class="input-group">
+                    <label>Date</label>
+                    <input type="date" id="exchange-date" required>
+                </div>
+                <div class="input-group">
+                    <label>My Shift</label>
+                    <select id="exchange-my-shift" required>
+                        <option value="">Select Your Shift</option>
+                        <option value="A">A Shift</option>
+                        <option value="B">B Shift</option>
+                        <option value="C">C Shift</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>With Employee</label>
+                    <select id="exchange-with-emp" required>
+                        <option value="">Select Employee</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>To Shift</label>
+                    <select id="exchange-to-shift" required>
+                        <option value="">Select Shift to Exchange</option>
+                        <option value="A">A Shift</option>
+                        <option value="B">B Shift</option>
+                        <option value="C">C Shift</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Send Request</button>
+            </form>
+        </div>
+    </div>
+
     <div id="leaveModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal()">&times;</span>
@@ -843,7 +856,35 @@
         }; // Sample roster data
         let shiftRequests = [];
         let leaveRequests = [];
-        let notifications = [];
+        let notifications = [
+            {
+                id: 1,
+                message: "Welcome to IC 07 GAVNER TOLL PLAZA Employee Portal. Please check your monthly roster and submit any shift exchange or leave requests as needed.",
+                date: new Date().toISOString()
+            },
+            {
+                id: 2,
+                message: "Monthly roster for January 2025 has been uploaded. Please verify your shift assignments and contact admin if there are any discrepancies.",
+                date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() // Yesterday
+            }
+        ];
+
+        let lastDataCheck = 0;
+        
+        function startLocalStoragePolling() {
+            setInterval(() => {
+                if (currentUser && currentUser.role === 'employee') {
+                    const lastUpdate = localStorage.getItem('lastDataUpdate');
+                    if (lastUpdate && parseInt(lastUpdate) > lastDataCheck) {
+                        lastDataCheck = parseInt(lastUpdate);
+                        loadFromLocalStorage();
+                        loadEmployeeData();
+                        updateNotificationBadge();
+                        console.log('📱 Employee data refreshed from localStorage');
+                    }
+                }
+            }, 2000); // Check every 2 seconds
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', initApp);
@@ -867,12 +908,16 @@
                 document.getElementById('loginError').textContent = '';
             }
             setupEventListeners();
+            
+            // Start polling for localStorage updates
+            startLocalStoragePolling();
         }
 
 
         function setupEventListeners() {
             document.getElementById('loginForm').addEventListener('submit', handleLogin);
             document.getElementById('leaveForm').addEventListener('submit', handleLeaveSubmit);
+            document.getElementById('shiftExchangeForm').addEventListener('submit', handleShiftExchangeSubmit);
             document.getElementById('editEmployeeForm').addEventListener('submit', handleEditEmployeeSubmit);
             document.getElementById('editProfileForm').addEventListener('submit', handleEditProfileSubmit);
             
@@ -1373,6 +1418,60 @@
             document.getElementById('leaveModal').style.display = 'block';
         }
 
+        function openShiftExchangeModal() {
+            // Populate employee dropdown
+            const empDropdown = document.getElementById('exchange-with-emp');
+            empDropdown.innerHTML = '<option value="">Select Employee</option>';
+            
+            employees.filter(emp => emp.id !== currentUser.id && emp.role === 'employee')
+                .forEach(emp => {
+                    const option = document.createElement('option');
+                    option.value = emp.id;
+                    option.textContent = emp.name;
+                    empDropdown.appendChild(option);
+                });
+            
+            document.getElementById('shiftExchangeModal').style.display = 'block';
+        }
+
+        function handleShiftExchangeSubmit(e) {
+            e.preventDefault();
+            const date = document.getElementById('exchange-date').value;
+            const myShift = document.getElementById('exchange-my-shift').value;
+            const withEmpId = document.getElementById('exchange-with-emp').value;
+            const toShift = document.getElementById('exchange-to-shift').value;
+            
+            if (!date || !myShift || !withEmpId || !toShift) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            const withEmp = employees.find(e => e.id === withEmpId);
+            if (!withEmp) {
+                alert('Selected employee not found');
+                return;
+            }
+            
+            const request = {
+                id: Date.now(),
+                fromEmpId: currentUser.id,
+                fromEmpName: currentUser.name,
+                date: date,
+                myShift: myShift,
+                withEmpId: withEmpId,
+                withEmpName: withEmp.name,
+                toShift: toShift,
+                status: 'pending_employee',
+                requestedOn: new Date().toISOString()
+            };
+            
+            shiftRequests.push(request);
+            saveData();
+            closeModal();
+            loadEmployeeShiftRequests();
+            alert('✅ Shift exchange request sent successfully!');
+        }
+
         function handleLeaveSubmit(e) {
             e.preventDefault();
             const fromDate = document.getElementById('leaveFromDate').value;
@@ -1425,6 +1524,8 @@
         function loadEmployeeNotifications() {
             const container = document.getElementById('empNotifications');
             
+            console.log('Loading employee notifications, count:', notifications.length);
+            
             // Update notification badge
             updateNotificationBadge();
             
@@ -1434,13 +1535,14 @@
             }
             
             let html = '';
-            notifications.forEach(notif => {
+            notifications.slice().reverse().forEach(notif => {
                 html += `<div class="request-card">
                     <p><strong>Date:</strong> ${formatDate(notif.date)}</p>
                     <p><strong>Message:</strong> ${notif.message}</p>
                 </div>`;
             });
             container.innerHTML = html;
+            console.log('Employee notifications loaded successfully');
         }
         
         function updateNotificationBadge() {
@@ -1593,7 +1695,7 @@
                 html += '<p>No requests pending admin approval.</p>';
             } else {
                 html += '<h4>Pending Admin Approval</h4><table class="roster-table"><thead><tr><th>From</th><th>To</th><th>Date</th><th>From Shift</th><th>To Shift</th><th>Employee Status</th><th>Requested On</th><th>Action</th></tr></thead><tbody>';
-                approvalRequests.forEach(req => {
+                approvalRequests.reverse().forEach(req => {
                     html += `<tr>
                         <td>${req.fromEmpName}</td>
                         <td>${req.withEmpName}</td>
@@ -1628,7 +1730,7 @@
         function displayShiftHistory(requests) {
             const container = document.getElementById('shiftHistoryTable');
             let html = '<table class="roster-table"><thead><tr><th>From</th><th>To</th><th>Date</th><th>From Shift</th><th>To Shift</th><th>Requested On</th><th>Status</th></tr></thead><tbody>';
-            requests.forEach(req => {
+            requests.reverse().forEach(req => {
                 let statusText = req.status === 'pending_employee' ? 'WAITING FOR EMPLOYEE' :
                                req.status === 'employee_accepted' ? 'EMPLOYEE ACCEPTED' :
                                req.status === 'employee_rejected' ? 'EMPLOYEE REJECTED' :
@@ -1707,7 +1809,7 @@
                 container.innerHTML = '<p>No pending requests.</p>';
             } else {
                 let html = '<h4>Pending Leave Requests</h4><table class="roster-table"><thead><tr><th>Employee</th><th>From Date</th><th>To Date</th><th>Days</th><th>Reason</th><th>Requested On</th><th>Action</th></tr></thead><tbody>';
-                pendingRequests.forEach(req => {
+                pendingRequests.reverse().forEach(req => {
                     html += `<tr>
                         <td>${req.empName}</td>
                         <td>${formatDate(req.fromDate)}</td>
@@ -1746,7 +1848,7 @@
         function displayLeaveHistory(requests) {
             const container = document.getElementById('leaveHistoryTable');
             let html = '<table class="roster-table"><thead><tr><th>Employee</th><th>From Date</th><th>To Date</th><th>Days</th><th>Reason</th><th>Requested On</th><th>Status</th></tr></thead><tbody>';
-            requests.forEach(req => {
+            requests.reverse().forEach(req => {
                 let statusClass = req.status === 'approved' ? 'status-approved' :
                                 req.status === 'rejected' ? 'status-rejected' : 'status-pending';
                 
@@ -1910,7 +2012,11 @@
                 date: new Date().toISOString()
             };
             
+            console.log('Adding notification:', notification);
             notifications.push(notification);
+            console.log('Total notifications now:', notifications.length);
+            
+            // Save data first to trigger Firebase update
             saveData();
             
             // Send push notification
@@ -1961,48 +2067,6 @@
             loadData();
         }
 
-        function sendShiftExchangeRequest() {
-            const date = document.getElementById('exchange-date').value;
-            const myShift = document.getElementById('exchange-my-shift').value;
-            const withEmpId = document.getElementById('exchange-with-emp').value;
-            const toShift = document.getElementById('exchange-to-shift').value;
-            
-            if (!date || !myShift || !withEmpId || !toShift) {
-                alert('Please fill all fields');
-                return;
-            }
-            
-            const withEmp = employees.find(e => e.id === withEmpId);
-            if (!withEmp) {
-                alert('Selected employee not found');
-                return;
-            }
-            
-            const request = {
-                id: Date.now(),
-                fromEmpId: currentUser.id,
-                fromEmpName: currentUser.name,
-                date: date,
-                myShift: myShift,
-                withEmpId: withEmpId,
-                withEmpName: withEmp.name,
-                toShift: toShift,
-                status: 'pending_employee',
-                requestedOn: new Date().toISOString()
-            };
-            
-            shiftRequests.push(request);
-            saveData();
-            
-            alert('Shift exchange request sent successfully!');
-            
-            // Clear form
-            document.getElementById('exchange-date').value = '';
-            document.getElementById('exchange-my-shift').value = '';
-            document.getElementById('exchange-with-emp').value = '';
-            document.getElementById('exchange-to-shift').value = '';
-        }
-
         function closeModal() {
             document.querySelectorAll('.modal').forEach(modal => modal.style.display = 'none');
         }
@@ -2044,6 +2108,7 @@
             localStorage.setItem('shiftRequests', JSON.stringify(shiftRequests));
             localStorage.setItem('leaveRequests', JSON.stringify(leaveRequests));
             localStorage.setItem('notifications', JSON.stringify(notifications));
+            localStorage.setItem('lastDataUpdate', Date.now().toString());
             if (currentUser) {
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
             }
@@ -2069,7 +2134,7 @@
                         shiftRequests = data.shiftRequests || [];
                         leaveRequests = data.leaveRequests || [];
                         notifications = data.notifications || [];
-                        console.log('✅ Data updated from Firebase');
+                        console.log('✅ Data updated from Firebase, notifications count:', notifications.length);
                         
                         // Refresh current view if user is logged in
                         if (currentUser) {
@@ -2077,6 +2142,13 @@
                                 loadAdminData();
                             } else {
                                 loadEmployeeData();
+                                // Update notification badge immediately for employees
+                                updateNotificationBadge();
+                                // If on notifications tab, refresh it
+                                const activeTab = document.querySelector('#employeeDashboard .tab-content.active');
+                                if (activeTab && activeTab.id === 'empNotificationTab') {
+                                    loadEmployeeNotifications();
+                                }
                             }
                         }
                     } else {
