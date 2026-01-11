@@ -599,11 +599,12 @@
                 <div style="margin-bottom: 20px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
                     <p style="margin-bottom: 15px; color: #2c3e50;"><strong>Instructions:</strong></p>
                     <ul style="margin-bottom: 15px; color: #7f8c8d;">
-                        <li>Row 1: Employee_ID | 1 | 2 | 3 | ... | 31 (dates)</li>
-                        <li>Row 2: Employee_ID | MON | TUE | WED | ... (days)</li>
-                        <li>Row 3+: Employee IDs in first column, shifts in date columns</li>
+                        <li>Row 1: EMP_ID | EMP_NAME | 1 | 2 | 3 | ... | 31 (dates)</li>
+                        <li>Row 2: EMP_ID | EMP_NAME | MON | TUE | WED | ... (days)</li>
+                        <li>Row 3+: Employee IDs and names in first two columns, shifts in date columns</li>
+                        <li>Example: AR0246 | KARTIK RAJUKLE | A | B | C | ... | W/O</li>
                         <li>Shifts: A, B, C, W/O</li>
-                        <li>Employee IDs must match system IDs exactly (e.g., AR0246)</li>
+                        <li>System matches by Employee ID only (first column)</li>
                     </ul>
                     <input type="file" id="rosterFile" accept=".xlsx,.xls" style="margin-bottom: 10px;">
                     <button class="btn btn-success" onclick="uploadRosterFile()" style="width: auto; padding: 12px 24px;">📤 Upload Roster</button>
@@ -1595,10 +1596,10 @@
                             const employeeId = foundEmployee.id;
                             monthlyRoster[employeeId] = {};
                             
-                            // Process shift data for this employee (skip first column which is Employee ID)
-                            for (let colIndex = 1; colIndex < row.length && colIndex <= 31; colIndex++) {
+                            // Process shift data for this employee (skip first two columns: ID and Name)
+                            for (let colIndex = 2; colIndex < row.length && colIndex <= 33; colIndex++) {
                                 const shiftValue = row[colIndex]?.toString().trim() || 'N/A';
-                                monthlyRoster[employeeId][`day${colIndex}`] = shiftValue;
+                                monthlyRoster[employeeId][`day${colIndex - 1}`] = shiftValue;
                             }
                             
                             processedEmployees++;
@@ -1607,7 +1608,7 @@
                     }
                     
                     if (processedEmployees === 0) {
-                        alert('❌ No employee roster data found in Excel file!\n\nExpected format:\nRow 1: Employee_ID | 1 | 2 | 3 | ... | 31\nRow 2: AR0246 | A | B | C | ... | W/O');
+                        alert('❌ No employee roster data found in Excel file!\n\nExpected format:\nRow 1: EMP_ID | EMP_NAME | 1 | 2 | 3 | ... | 31\nRow 2: AR0246 | KARTIK RAJUKLE | A | B | C | ... | W/O');
                         return;
                     }
                     
